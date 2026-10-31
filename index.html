@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Channel Status — All channels in one place</title>
+<meta name="description" content="Every channel in one place: status, latest post and links. Snapshot, updated by hand.">
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --ink:#1c1e21; --muted:#65676b; --line:#e4e6eb;
+    --green:#1a7f37; --green-bg:#e6f4ea; --amber:#9a6700; --amber-bg:#fef3c7;
+    --red:#b3261e; --red-bg:#fdecea; --grey:#65676b; --grey-bg:#eceef0;
+    --yt:#ff0000; --ig1:#feda75; --ig2:#d62976; --ig3:#962fbf; --fb:#1877f2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{background:#111827;color:#fff;padding:28px 20px 22px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+  header h1{margin:0 0 6px;font-size:28px}
+  header p{margin:4px 0;color:#d1d5db}
+  .updated{color:#9ca3af;font-size:13px}
+  .summary{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 4px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 16px;min-width:110px}
+  .stat b{display:block;font-size:22px}
+  .stat span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+  .controls input[type="search"]{flex:1 1 220px;padding:9px 12px;border:1px solid var(--line);
+    border-radius:999px;font-size:14px;background:#fff}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;
+    padding:8px 14px;font-size:14px;cursor:pointer}
+  .chip[aria-pressed="true"]{background:#111827;color:#fff;border-color:#111827}
+  h2{margin:28px 0 4px;font-size:20px}
+  .group-note{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px;display:flex;flex-direction:column;gap:8px}
+  .card.hidden{display:none}
+  .top{display:flex;align-items:center;gap:10px}
+  .logo{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;
+    justify-content:center;flex:none;color:#fff}
+  .logo.yt{background:var(--yt)}
+  .logo.fb{background:var(--fb);font-weight:800;font-size:22px}
+  .logo.ig{background:linear-gradient(45deg,var(--ig1),var(--ig2),var(--ig3))}
+  .logo svg{display:block}
+  .top h3{margin:0;font-size:17px}
+  .handle{color:var(--muted);font-size:13px;margin:0}
+  .pill{align-self:flex-start;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px}
+  .pill.live,.pill.active{background:var(--green-bg);color:var(--green)}
+  .pill.quiet,.pill.gated{background:var(--amber-bg);color:var(--amber)}
+  .pill.disabled,.pill.refused{background:var(--red-bg);color:var(--red)}
+  .pill.unknown,.pill.pending,.pill.unverified{background:var(--grey-bg);color:var(--grey)}
+  .facts{display:flex;gap:16px;color:var(--muted);font-size:13px}
+  .facts b{color:var(--ink);font-size:15px}
+  .latest{font-size:14px;line-height:1.45}
+  .latest .lbl{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em;display:block}
+  .meta{color:var(--muted);font-size:12px}
+  .actions{margin-top:auto;padding-top:6px;display:flex;gap:8px;flex-wrap:wrap}
+  .btn{display:inline-block;text-decoration:none;border:1px solid var(--line);background:#fff;
+    color:var(--ink);border-radius:999px;padding:7px 14px;font-size:14px}
+  .btn.primary{background:#111827;color:#fff;border-color:#111827}
+  .btn.disabled{opacity:.55;pointer-events:none}
+  .notes{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;
+    padding:14px 16px;margin:28px 0;font-size:14px;line-height:1.55}
+  .notes h2{margin-top:0}
+  footer{color:var(--muted);font-size:13px;padding:20px 0 34px}
+  .empty{display:none;background:#fff;border:1px dashed var(--line);border-radius:12px;
+    padding:18px;text-align:center;color:var(--muted)}
+  .empty.show{display:block}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Channel Status</h1>
+    <p>All my channels in one place &middot; status, latest post and links.</p>
+    <p class="updated">Snapshot updated 01 Nov 2026, about 01:00 IST &middot; Updated by hand, not a live check.
+      Figures are shown exactly as last returned &mdash; see Notes.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="summary" id="summary" aria-label="Totals"></div>
+
+  <div class="controls" role="group" aria-label="Filters">
+    <input type="search" id="search" placeholder="Search a channel or handle&hellip;" aria-label="Search channels">
+    <button class="chip" data-filter-platform="all" aria-pressed="true">All platforms</button>
+    <button class="chip" data-filter-platform="youtube" aria-pressed="false">YouTube</button>
+    <button class="chip" data-filter-platform="instagram" aria-pressed="false">Instagram</button>
+    <button class="chip" data-filter-platform="facebook" aria-pressed="false">Facebook</button>
+    <button class="chip" data-filter-status="all" aria-pressed="true">All statuses</button>
+    <button class="chip" data-filter-status="live" aria-pressed="false">Live / Active</button>
+    <button class="chip" data-filter-status="attention" aria-pressed="false">Needs attention</button>
+  </div>
+
+  <h2>Channels on the niteshlhsnda-droid account</h2>
+  <p class="group-note">Figures as returned on 01 Nov 2026, 00:37 IST, from the connected
+    Instagram / YouTube reads. YouTube subscriber counts are not shown: YouTube&rsquo;s
+    public data does not expose them for these channels.</p>
+
+  <h2 style="font-size:16px">Instagram</h2>
+  <div class="grid">
+    <article class="card" data-platform="instagram" data-status="live" data-name="patna pulse patna_pulse.post">
+      <div class="top">
+        <span class="logo ig" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff" stroke="none"/></svg></span>
+        <div><h3>Patna Pulse</h3><p class="handle">@patna_pulse.post</p></div>
+      </div>
+      <span class="pill live">Active</span>
+      <div class="facts"><span>Followers <b>270</b></span><span>Posts <b>263</b></span></div>
+      <p class="latest"><span class="lbl">Latest post &middot; video</span>01 Nov 2026, 00:20 IST</p>
+      <p class="meta">As returned 01 Nov 2026, 00:37 IST.</p>
+      <div class="actions"><a class="btn primary" href="https://www.instagram.com/patna_pulse.post/" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+
+    <article class="card" data-platform="instagram" data-status="live" data-name="momo's jungle tales kids.stories.tales">
+      <div class="top">
+        <span class="logo ig" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff" stroke="none"/></svg></span>
+        <div><h3>Momo&rsquo;s Jungle Tales</h3><p class="handle">@kids.stories.tales</p></div>
+      </div>
+      <span class="pill live">Active</span>
+      <div class="facts"><span>Followers <b>0</b></span><span>Posts <b>74</b></span></div>
+      <p class="latest"><span class="lbl">Latest post &middot; image</span>31 Oct 2026, 20:50 IST</p>
+      <p class="meta">Follower count read 0 on the first check; shown as returned.</p>
+      <div class="actions"><a class="btn primary" href="https://www.instagram.com/kids.stories.tales/" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+
+    <article class="card" data-platform="instagram" data-status="live" data-name="sia sia.aesthetic_baddie">
+      <div class="top">
+        <span class="logo ig" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff" stroke="none"/></svg></span>
+        <div><h3>Sia</h3><p class="handle">@sia.aesthetic_baddie</p></div>
+      </div>
+      <span class="pill live">Active</span>
+      <div class="facts"><span>Followers <b>15</b></span><span>Posts <b>82</b></span></div>
+      <p class="latest"><span class="lbl">Latest post &middot; video</span>31 Oct 2026, 20:43 IST</p>
+      <p class="meta">As returned 01 Nov 2026, 00:37 IST.</p>
+      <div class="actions"><a class="btn primary" href="https://www.instagram.com/sia.aesthetic_baddie/" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+  </div>
+
+  <h2 style="font-size:16px">Facebook</h2>
+  <div class="grid">
+    <article class="card" data-platform="facebook" data-status="unknown" data-name="sleepy storyteller">
+      <div class="top">
+        <span class="logo fb" aria-hidden="true">f</span>
+        <div><h3>Sleepy Storyteller</h3><p class="handle">Facebook Page</p></div>
+      </div>
+      <span class="pill unknown">Unknown</span>
+      <div class="facts"><span>Followers <b>0</b></span></div>
+      <p class="latest"><span class="lbl">Latest post</span>No recent post found</p>
+      <p class="meta">Page URL not on file.</p>
+      <div class="actions"><a class="btn disabled" href="https://www.facebook.com/" aria-disabled="true">No public link on file</a></div>
+    </article>
+
+    <article class="card" data-platform="facebook" data-status="unknown" data-name="nani ki kahaniyan">
+      <div class="top">
+        <span class="logo fb" aria-hidden="true">f</span>
+        <div><h3>Nani Ki Kahaniyan</h3><p class="handle">Facebook Page</p></div>
+      </div>
+      <span class="pill unknown">Unknown</span>
+      <div class="facts"><span>Followers <b>0</b></span></div>
+      <p class="latest"><span class="lbl">Latest post</span>No recent post found</p>
+      <p class="meta">Page URL not on file.</p>
+      <div class="actions"><a class="btn disabled" href="https://www.facebook.com/" aria-disabled="true">No public link on file</a></div>
+    </article>
+
+    <article class="card" data-platform="facebook" data-status="unknown" data-name="earthquakeinnepal.org earthquake in nepal">
+      <div class="top">
+        <span class="logo fb" aria-hidden="true">f</span>
+        <div><h3>earthquakeinnepal.org</h3><p class="handle">Facebook Page</p></div>
+      </div>
+      <span class="pill unknown">Unknown</span>
+      <div class="facts"><span>Followers <b>119</b></span></div>
+      <p class="latest"><span class="lbl">Latest post</span>No recent post found</p>
+      <p class="meta">Page URL not on file.</p>
+      <div class="actions"><a class="btn disabled" href="https://www.facebook.com/" aria-disabled="true">No public link on file</a></div>
+    </article>
+  </div>
+
+  <h2 style="font-size:16px">YouTube</h2>
+  <div class="grid">
+    <article class="card" data-platform="youtube" data-status="live" data-name="patna pulse patna_pulse">
+      <div class="top">
+        <span class="logo yt" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="#fff"/><path d="M10 8.8v6.4l5.5-3.2z" fill="#ff0000"/></svg></span>
+        <div><h3>Patna Pulse</h3><p class="handle">@patna_pulse</p></div>
+      </div>
+      <span class="pill live">Active</span>
+      <p class="latest"><span class="lbl">Latest video &middot; 01 Nov 2026</span>ISRO का NVS-03 लॉन्च सफल &mdash; बिहार CM ने क्या कहा? | Patna Pulse #Shorts</p>
+      <p class="meta">Subscriber count not shown (not exposed in public data).</p>
+      <div class="actions"><a class="btn primary" href="https://www.youtube.com/@patna_pulse" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+
+    <article class="card" data-platform="youtube" data-status="live" data-name="kids stories tales kids.stories.tales.official">
+      <div class="top">
+        <span class="logo yt" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="#fff"/><path d="M10 8.8v6.4l5.5-3.2z" fill="#ff0000"/></svg></span>
+        <div><h3>Kids Stories Tales</h3><p class="handle">@kids.stories.tales.official</p></div>
+      </div>
+      <span class="pill live">Active</span>
+      <p class="latest"><span class="lbl">Latest video &middot; 31 Oct 2026</span>Nasruddin and the Moon in the Well | Bedtime Story for Kids</p>
+      <p class="meta">Subscriber count not shown (not exposed in public data).</p>
+      <div class="actions"><a class="btn primary" href="https://www.youtube.com/@kids.stories.tales.official" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+
+    <article class="card" data-platform="youtube" data-status="unknown" data-name="meme adda memeaddaindia">
+      <div class="top">
+        <span class="logo yt" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="#fff"/><path d="M10 8.8v6.4l5.5-3.2z" fill="#ff0000"/></svg></span>
+        <div><h3>Meme Adda</h3><p class="handle">@memeaddaindia</p></div>
+      </div>
+      <span class="pill unknown">Unknown</span>
+      <p class="latest"><span class="lbl">Latest post</span>No recent post found</p>
+      <p class="meta">Subscriber count not shown (not exposed in public data).</p>
+      <div class="actions"><a class="btn primary" href="https://www.youtube.com/@memeaddaindia" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+
+    <article class="card" data-platform="youtube" data-status="quiet" data-name="hindi rhymes junction hindi_rhymes_junction">
+      <div class="top">
+        <span class="logo yt" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="#fff"/><path d="M10 8.8v6.4l5.5-3.2z" fill="#ff0000"/></svg></span>
+        <div><h3>Hindi Rhymes Junction</h3><p class="handle">@hindi_rhymes_junction</p></div>
+      </div>
+      <span class="pill quiet">Quiet</span>
+      <p class="latest"><span class="lbl">Latest video &middot; 25 Oct 2026</span>गैया मेरी | Gaiya Meri Doodh Deti Hai | Hindi Rhymes for Children</p>
+      <p class="meta">Subscriber count not shown (not exposed in public data).</p>
+      <div class="actions"><a class="btn primary" href="https://www.youtube.com/@hindi_rhymes_junction" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+  </div>
+
+  <h2>Brands on the MaticCretic account</h2>
+  <p class="group-note">Statuses from Jarvis&rsquo;s verified records, 01 Nov 2026. No follower
+    or subscriber counts are shown for these: none is verified.</p>
+  <div class="grid">
+    <article class="card" data-platform="youtube" data-status="live" data-name="daily current affairs dailycurrentaffairs-s1p">
+      <div class="top">
+        <span class="logo yt" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="#fff"/><path d="M10 8.8v6.4l5.5-3.2z" fill="#ff0000"/></svg></span>
+        <div><h3>Daily Current Affairs</h3><p class="handle">@DailyCurrentAffairs-s1p</p></div>
+      </div>
+      <span class="pill live">Live</span>
+      <p class="latest"><span class="lbl">Latest</span>Episode 64 published 30 Oct 2026. Episode 65 is built and
+        QA-passed but unpublished &mdash; blocked at the phone sign-in check. Episode 66 waits until 65 is out.</p>
+      <p class="meta">Channel ID UCsOqDVFHEFv1f9rb4zF9nnA &middot; maticcretic@gmail.com</p>
+      <div class="actions"><a class="btn primary" href="https://www.youtube.com/channel/UCsOqDVFHEFv1f9rb4zF9nnA" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+
+    <article class="card" data-platform="facebook" data-status="live" data-name="daily current affairs facebook page">
+      <div class="top">
+        <span class="logo fb" aria-hidden="true">f</span>
+        <div><h3>Daily Current Affairs</h3><p class="handle">Facebook Page</p></div>
+      </div>
+      <span class="pill live">Live</span>
+      <p class="latest"><span class="lbl">Latest</span>Page created and published 30 Sep 2026.</p>
+      <p class="meta">Page URL not on file.</p>
+      <div class="actions"><a class="btn disabled" href="https://www.facebook.com/" aria-disabled="true">No public link on file</a></div>
+    </article>
+
+    <article class="card" data-platform="instagram" data-status="disabled" data-name="daily current affairs dailycurrentaffairs523">
+      <div class="top">
+        <span class="logo ig" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff" stroke="none"/></svg></span>
+        <div><h3>Daily Current Affairs</h3><p class="handle">@dailycurrentaffairs523</p></div>
+      </div>
+      <span class="pill disabled">Permanently disabled</span>
+      <p class="latest"><span class="lbl">Status</span>Disabled 30 Sep 2026, with no appeal. This brand will
+        never have Instagram or Threads.</p>
+      <p class="meta">Do not try to recover it or link a new account to it.</p>
+      <div class="actions"><a class="btn disabled" href="https://www.instagram.com/" aria-disabled="true">Account closed</a></div>
+    </article>
+
+    <article class="card" data-platform="instagram" data-status="gated" data-name="kal se pakka kalsepakkamemes">
+      <div class="top">
+        <span class="logo ig" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff" stroke="none"/></svg></span>
+        <div><h3>Kal Se Pakka</h3><p class="handle">@kalsepakkamemes</p></div>
+      </div>
+      <span class="pill gated">Gated &mdash; selfie check</span>
+      <p class="latest"><span class="lbl">Status</span>Created 22 Oct 2026, 0 posts. Phone code passed 26 Oct.
+        Still gated at &ldquo;Upload a verification selfie&rdquo; &mdash; no selfie uploaded.
+        Which Instagram route to take is still undecided.</p>
+      <p class="meta">Needs Nitesh&rsquo;s explicit decision. Nothing is posted until then.</p>
+      <div class="actions"><a class="btn primary" href="https://www.instagram.com/kalsepakkamemes/" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+
+    <article class="card" data-platform="youtube" data-status="pending" data-name="kal se pakka youtube">
+      <div class="top">
+        <span class="logo yt" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="#fff"/><path d="M10 8.8v6.4l5.5-3.2z" fill="#ff0000"/></svg></span>
+        <div><h3>Kal Se Pakka</h3><p class="handle">YouTube &mdash; not created</p></div>
+      </div>
+      <span class="pill pending">Setup pending</span>
+      <p class="latest"><span class="lbl">Status</span>Channel creation needs a one-time Studio verification
+        from Nitesh. Faceless meme brand: original Hinglish memes only.</p>
+      <p class="meta">Batch 1 (12 pieces) is built but unposted; trend-chasing is cancelled.</p>
+      <div class="actions"><a class="btn disabled" href="https://studio.youtube.com/" aria-disabled="true">Not created yet</a></div>
+    </article>
+
+    <article class="card" data-platform="facebook" data-status="refused" data-name="kal se pakka facebook page">
+      <div class="top">
+        <span class="logo fb" aria-hidden="true">f</span>
+        <div><h3>Kal Se Pakka</h3><p class="handle">Facebook Page</p></div>
+      </div>
+      <span class="pill refused">Creation refused</span>
+      <p class="latest"><span class="lbl">Status</span>Page creation was refused because of an account
+        restriction. The Daily Current Affairs Page was not affected.</p>
+      <p class="meta">Do not retry without a fresh decision.</p>
+      <div class="actions"><a class="btn disabled" href="https://www.facebook.com/" aria-disabled="true">No page exists</a></div>
+    </article>
+
+    <article class="card" data-platform="youtube" data-status="unverified" data-name="automate with nitesh automatewithnitesh">
+      <div class="top">
+        <span class="logo yt" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="#fff"/><path d="M10 8.8v6.4l5.5-3.2z" fill="#ff0000"/></svg></span>
+        <div><h3>Automate with Nitesh</h3><p class="handle">@AutomateWithNitesh</p></div>
+      </div>
+      <span class="pill unverified">Unverified &mdash; unknown</span>
+      <p class="latest"><span class="lbl">Status</span>Channel setup was started and paused for a Google
+        sign-in. Completion is unverified &mdash; do not treat it as live.</p>
+      <p class="meta">Launch kit (scripts, logo, banner, trailer) is on file.</p>
+      <div class="actions"><a class="btn primary" href="https://www.youtube.com/@AutomateWithNitesh" target="_blank" rel="noopener">Open channel &#8599;</a></div>
+    </article>
+  </div>
+
+  <p class="empty" id="empty">No channels match those filters. Try clearing the search or choosing &ldquo;All&rdquo;.</p>
+
+  <section class="notes">
+    <h2>How to read this page</h2>
+    <p><strong>Health:</strong> Active = posted in the last 48 hours &middot; Quiet = last post
+      within 7 days &middot; Stale = older than 7 days &middot; Unknown = no recent post found.
+      Live, Gated, Disabled, Refused, Setup pending and Unverified are account states,
+      not posting health.</p>
+    <p><strong>Notes from the original page:</strong> @memeaddaindia.post on Instagram
+      is not linked to the connection yet, so it does not appear above &mdash; link it in
+      Meta Accounts Center to include it. YouTube subscriber counts are not shown
+      because YouTube&rsquo;s public data does not expose them for these channels.
+      Instagram follower counts are as returned by Instagram&rsquo;s own read; the kids
+      account read 0 on the first check and is shown as returned.</p>
+    <p><strong>Honesty notes (new):</strong> this page is a hand-updated snapshot, not a
+      live feed. Nothing here refreshes itself. Figures for the first group are copied
+      from the 01 Nov 2026, 00:37 IST read and will go stale until the next manual
+      update. No counts are guessed: where a number is not verified, none is shown.
+      Facebook page URLs are not on file, so those cards carry no invented link.</p>
+  </section>
+
+  <footer>Built for Nitesh by Jarvis &middot; Single file, no trackers, no sign-in.
+    To update it, edit this page&rsquo;s card data and push again &mdash; see README in the repo.</footer>
+</main>
+
+<script>
+(function(){
+  var platform = "all", status = "all", q = "";
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".card"));
+  var summary = document.getElementById("summary");
+  var empty = document.getElementById("empty");
+  function counts(){
+    var c = {total: cards.length, live: 0, attention: 0, unknown: 0};
+    cards.forEach(function(card){
+      var s = card.getAttribute("data-status");
+      if (s === "live") c.live++;
+      else if (s === "unknown" || s === "pending" || s === "unverified") c.unknown++;
+      else c.attention++;
+    });
+    return c;
+  }
+  function renderSummary(){
+    var c = counts();
+    summary.innerHTML =
+      "<div class='stat'><b>" + c.total + "</b><span>Channels</span></div>" +
+      "<div class='stat'><b>" + c.live + "</b><span>Live / Active</span></div>" +
+      "<div class='stat'><b>" + c.attention + "</b><span>Need attention</span></div>" +
+      "<div class='stat'><b>" + c.unknown + "</b><span>Unknown / pending</span></div>";
+  }
+  function matches(card){
+    var p = card.getAttribute("data-platform"), s = card.getAttribute("data-status");
+    if (platform !== "all" && p !== platform) return false;
+    if (status === "live" && s !== "live") return false;
+    if (status === "attention" && !(s === "gated" || s === "disabled" || s === "refused" || s === "quiet")) return false;
+    if (q && card.getAttribute("data-name").indexOf(q) === -1) return false;
+    return true;
+  }
+  function apply(){
+    var shown = 0;
+    cards.forEach(function(card){
+      var ok = matches(card);
+      card.classList.toggle("hidden", !ok);
+      if (ok) shown++;
+    });
+    empty.classList.toggle("show", shown === 0);
+  }
+  document.querySelectorAll("[data-filter-platform]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      platform = btn.getAttribute("data-filter-platform");
+      document.querySelectorAll("[data-filter-platform]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      apply();
+    });
+  });
+  document.querySelectorAll("[data-filter-status]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      status = btn.getAttribute("data-filter-status");
+      document.querySelectorAll("[data-filter-status]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      apply();
+    });
+  });
+  document.getElementById("search").addEventListener("input", function(e){
+    q = e.target.value.trim().toLowerCase();
+    apply();
+  });
+  renderSummary();
+  apply();
+})();
+</script>
+</body>
+</html>
