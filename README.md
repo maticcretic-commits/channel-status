@@ -12,7 +12,8 @@ from one account with follower counts and latest posts. This version keeps all o
 that data and adds:
 
 - A second group: the brands on the MaticCretic account (Daily Current Affairs and
-  Kal Se Pakka on YouTube / Facebook / Instagram, plus Automate with Nitesh),
+  the meme brand — Meme Adda, ratified 1 Nov 2026 — on YouTube / Facebook /
+  Instagram, plus Automate with Nitesh),
   with statuses from Jarvis's verified records — including the permanently
   disabled Instagram account, the selfie-gated Kal Se Pakka account, and the
   refused Facebook Page, so nothing looks live when it is not.
@@ -32,5 +33,5 @@ that data and adds:
 Rules for updates: never invent a follower/subscriber count, a post date, or a
 URL. If it is not verified, write "not verified" / "not on file" and leave the
 link off. Never mark the disabled Instagram account as recoverable, and never
-mark the gated Kal Se Pakka account as live until the selfie decision is made
-and the gate is actually cleared.
+mark the gated @kalsepakkamemes account as live or as the meme brand handle —
+it stays parked untouched, and the meme brand is Meme Adda (ratified 1 Nov 2026).
